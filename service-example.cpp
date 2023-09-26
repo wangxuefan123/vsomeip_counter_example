@@ -11,42 +11,52 @@
 
 #include "sample-ids.hpp"
 
-class CounterService {
+class CounterService
+{
 public:
-	CounterService():
-		app_(vsomeip::runtime::get()->create_application("CounterService")),
-		is_registered_(false),
-		counter_(0),
-        is_offered_(false),
-        running_(true),
-		//offer_thread_(std::bind(&CounterService::run, this)),
-		notify_thread_(std::bind(&CounterService::notify, this)) {}
+    CounterService() : app_(vsomeip::runtime::get()->create_application("CounterService")),
+                       is_registered_(false),
+                       counter_(0),
+                       is_offered_(false),
+                       running_(true),
+                       // offer_thread_(std::bind(&CounterService::run, this)),
+                       notify_thread_(std::bind(&CounterService::notify, this))
+    {
+    }
 
-    void on_state(vsomeip::state_type_e _state) {
+    void on_state(vsomeip::state_type_e _state)
+    {
         std::cout << "Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered." : "deregistered.") << std::endl;
+                  << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.") << std::endl;
 
-        if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            if (!is_registered_) {
+        if (_state == vsomeip::state_type_e::ST_REGISTERED)
+        {
+            if (!is_registered_)
+            {
                 is_registered_ = true;
             }
-        } else {
+        }
+        else
+        {
             is_registered_ = false;
         }
     }
 
-    void notify(){
-        while (running_) {
+    void notify()
+    {
+        while (running_)
+        {
             std::unique_lock<std::mutex> its_lock(notify_mutex_);
-            while (not is_offered_ && running_){
+            while (not is_offered_ && running_)
+            {
                 std::cout << "[INFO] Wait main thread enter blocked state !" << std::endl;
                 notify_condition_.wait(its_lock);
             }
-            
+
             {
                 std::lock_guard<std::mutex> its_lock(counter_mutex_);
-                if (counter_ == 4) {
+                if (counter_ == 4)
+                {
                     std::cout << "[INFO] EVENT triggered! Counter = 4, NOTIFY subscribers!" << std::endl;
                     std::string notify_msg = "~EVENT FOUR~";
                     std::vector<vsomeip::byte_t> notify_payload_data(notify_msg.begin(), notify_msg.end());
@@ -59,64 +69,74 @@ public:
             }
             // Event check cycle
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }		
-	}
+        }
+    }
 
-    void on_message(const std::shared_ptr<vsomeip::message> &_request) {
+    void on_message(const std::shared_ptr<vsomeip::message> &_request)
+    {
         std::lock_guard<std::mutex> its_lock(counter_mutex_);
         std::cout << "ON_MESSAGE CALLED" << std::endl;
-		std::shared_ptr<vsomeip::payload> its_payload = _request->get_payload();
-		vsomeip::length_t l = its_payload->get_length();
+        std::shared_ptr<vsomeip::payload> its_payload = _request->get_payload();
+        vsomeip::length_t l = its_payload->get_length();
 
-		
-		// Get payload as a string
+        // Get payload as a string
         std::string payload_str;
-        for (vsomeip::length_t i = 0; i < l; i++) {
+        for (vsomeip::length_t i = 0; i < l; i++)
+        {
             payload_str += static_cast<char>(*(its_payload->get_data() + i));
         }
 
-        if (payload_str == "up") {
+        if (payload_str == "up")
+        {
             // Increment the counter
             counter_++;
             std::cout << "SERVICE: Incremented counter to " << counter_ << std::endl;
-        } else if (payload_str == "down") {
+        }
+        else if (payload_str == "down")
+        {
             // Decrement the counter (with a check to ensure it doesn't go negative)
-            if (counter_ > 0) {
+            if (counter_ > 0)
+            {
                 counter_--;
                 std::cout << "SERVICE: Decremented counter to " << counter_ << std::endl;
-            } else {
+            }
+            else
+            {
                 std::cout << "SERVICE: Counter is already at 0, cannot decrement further." << std::endl;
             }
-        } else {
+        }
+        else
+        {
             std::cout << "SERVICE: Received an unsupported message: " << payload_str << std::endl;
         }
 
         std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_request);
         its_payload = vsomeip::runtime::get()->create_payload();
         const vsomeip::byte_t its_payload_data[] = {0x10};
-        //auto its_payload_data = get_payload_data(counter_);
+        // auto its_payload_data = get_payload_data(counter_);
 
-        its_payload->set_data(its_payload_data,sizeof(its_payload_data));
+        its_payload->set_data(its_payload_data, sizeof(its_payload_data));
         its_response->set_payload(its_payload);
         app_->send(its_response);
-	}
-    
+    }
 
-	bool init() {
+    bool init()
+    {
         std::lock_guard<std::mutex> its_lock(notify_mutex_);
-		// init the application
-		if (!app_->init()) {
-			std::cerr << "Couldn't initialize application" << std::endl;
-			return false;
-		}
-		app_->register_state_handler(
-                std::bind(&CounterService::on_state, this,
-                        std::placeholders::_1));
+        // init the application
+        if (!app_->init())
+        {
+            std::cerr << "Couldn't initialize application" << std::endl;
+            return false;
+        }
+        app_->register_state_handler(
+            std::bind(&CounterService::on_state, this,
+                      std::placeholders::_1));
 
         app_->register_message_handler(
-                vsomeip::ANY_SERVICE, SAMPLE_INSTANCE_ID, vsomeip::ANY_METHOD,  ////
-                std::bind(&CounterService::on_message, this,
-                          std::placeholders::_1));
+            vsomeip::ANY_SERVICE, SAMPLE_INSTANCE_ID, vsomeip::ANY_METHOD, ////
+            std::bind(&CounterService::on_message, this,
+                      std::placeholders::_1));
 
         // app_->register_message_handler(
         //         SAMPLE_SERVICE_ID,
@@ -134,29 +154,27 @@ public:
 
         app_->offer_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
 
-
-		std::set<vsomeip::eventgroup_t> its_groups;
+        std::set<vsomeip::eventgroup_t> its_groups;
         its_groups.insert(SAMPLE_EVENTGROUP_ID);
         app_->offer_event(
-                SAMPLE_SERVICE_ID,
-                SAMPLE_INSTANCE_ID,
-                SAMPLE_EVENT_ID,
-                its_groups,
-                vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+            SAMPLE_SERVICE_ID,
+            SAMPLE_INSTANCE_ID,
+            SAMPLE_EVENT_ID,
+            its_groups,
+            vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
+            false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
         // {
         //     std::lock_guard<std::mutex> its_lock(payload_mutex_);
         //     payload_ = vsomeip::runtime::get()->create_payload();
         // }
 
-        //blocked_ = true;
+        // blocked_ = true;
         is_offered_ = true;
         notify_condition_.notify_one();
-		return true;
-	    }
+        return true;
+    }
 
-        void start() { app_->start(); }
-
+    void start() { app_->start(); }
 
     // void on_get(const std::shared_ptr<vsomeip::message> &_message) {
     //     std::shared_ptr<vsomeip::message> its_response
@@ -182,33 +200,34 @@ public:
     //                  SAMPLE_EVENT_ID, payload_);
     // }
 
-
 private:
-	std::shared_ptr<vsomeip::application> app_;
-	bool is_registered_;
-	unsigned int counter_;
+    std::shared_ptr<vsomeip::application> app_;
+    bool is_registered_;
+    unsigned int counter_;
 
     std::mutex counter_mutex_;
-    //std::condition_variable condition_;
-    //bool blocked_;
+    // std::condition_variable condition_;
+    // bool blocked_;
     bool running_;
 
     std::mutex notify_mutex_;
     std::condition_variable notify_condition_;
     bool is_offered_;
 
-	//std::mutex payload_mutex_;
-	//std::shared_ptr<vsomeip::payload> payload_;
+    // std::mutex payload_mutex_;
+    // std::shared_ptr<vsomeip::payload> payload_;
 
-	//std::thread offer_thread_;
-	std::thread notify_thread_;
+    // std::thread offer_thread_;
+    std::thread notify_thread_;
 };
 
-int main() {
-	//auto service = CounterService();
-	CounterService service;
+int main()
+{
+    // auto service = CounterService();
+    CounterService service;
 
-    if (!service.init()) {
+    if (!service.init())
+    {
         return EXIT_FAILURE;
     };
     service.start();
@@ -218,5 +237,5 @@ int main() {
     //     // Wait for the offer_thread_ to finish
     //     offer_thread.join();
     // }
-	return 0;
+    return 0;
 }
