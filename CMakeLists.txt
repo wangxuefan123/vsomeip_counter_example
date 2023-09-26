@@ -11,7 +11,11 @@ include_directories(${Boost_INCLUDE_DIR})
 find_package(vsomeip3 REQUIRED)
 add_executable(service-example  ../service-example.cpp)
 target_link_libraries(service-example  vsomeip3 pthread)
+
 add_executable(request-example ../request-example.cpp)
 target_link_libraries(request-example  vsomeip3 pthread)
+
+add_executable(subscribe-example ../subscribe-example.cpp)
+target_link_libraries(subscribe-example  vsomeip3 pthread)
 #add_executable  (client-example ../client-example.cpp)
 #target_link_libraries(client-example  vsomeip ${Boost_LIBRARIES})
