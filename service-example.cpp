@@ -161,7 +161,7 @@ public:
             SAMPLE_INSTANCE_ID,
             SAMPLE_EVENT_ID,
             its_groups,
-            vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
+            vsomeip::event_type_e::ET_EVENT, std::chrono::milliseconds::zero(),
             false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
         // {
         //     std::lock_guard<std::mutex> its_lock(payload_mutex_);
