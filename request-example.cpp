@@ -19,13 +19,13 @@ void run() {
 
     // Prompt the user for input
     std::string user_input;
-    std::cout << "Enter 'up' or 'down' to send a request to the server: ";
+    std::cout << "Enter 'u'(up)/'d'(down) or 'au'(autoup)/'ad'(autodown) to send a request to the server: ";
 
     while(true){
         std::cin >> user_input;
 
         // Check if the user input is valid ("up" or "down")
-        if (user_input == "up" || user_input == "down") {
+        if (user_input == "u" || user_input == "d" || user_input == "au" || user_input == "ad" || user_input == "s") {
             std::shared_ptr<vsomeip::message> request = vsomeip::runtime::get()->create_request();
             request->set_service(SAMPLE_SERVICE_ID);
             request->set_instance(SAMPLE_INSTANCE_ID);

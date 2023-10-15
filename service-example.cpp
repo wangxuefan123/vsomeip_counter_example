@@ -7,6 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <thread>
+//#include <atomic>
 #include <vsomeip/vsomeip.hpp>
 
 #include "sample-ids.hpp"
@@ -19,7 +20,11 @@ public:
                        counter_(0),
                        is_offered_(false),
                        running_(true),
+                       stop_(false),
+                       //request_("s"),
                        // offer_thread_(std::bind(&CounterService::run, this)),
+                       check_thread_(std::bind(&CounterService::check_request, this)),
+                       count_thread_(std::bind(&CounterService::counting, this)),
                        notify_thread_(std::bind(&CounterService::notify, this))
     {
     }
@@ -42,6 +47,58 @@ public:
         }
     }
 
+    void check_request()
+    {
+        std::cout << "check_request() CALLED" << std::endl;
+        while(running_)
+        {
+            // if(payload_str =="au"){
+            //     stop_ = false;
+            //     request_ = payload_str;
+            // }
+            // else if(payload_str =="ad")
+            // {
+            //     stop_ = false;
+            //     request_ = payload_str;
+            // }
+            // else if(payload_str =="s")
+            // {
+            //     stop_ = true;
+            // }
+            if(request_ == "s"){
+                stop_ = true;
+                break;
+            }
+            else{
+                stop_ = false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    }
+
+    void counting()
+    {
+        std::cout << "counting() CALLED" << std::endl;
+        //std::lock_guard<std::mutex> its_lock(counter_mutex_);
+        while(running_ && !stop_)
+        {
+            if(request_ == "au")
+            {
+                for (; counter_ <= 20 && !stop_; ++counter_) {
+                    std::cout << "SERVICE: Incremented counter to " << counter_ << std::endl;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                }
+            }
+            else if (request_ == "ad")
+            {
+                for (; counter_ >= 0 && !stop_; --counter_) {
+                    std::cout << "SERVICE: Decremented counter to " << counter_ << std::endl;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                }
+            }
+        }
+    }
+
     void notify()
     {
         while (running_)
@@ -55,10 +112,10 @@ public:
 
             {
                 std::lock_guard<std::mutex> its_lock(counter_mutex_);
-                if (counter_ == 4)
+                if (counter_ == 8)
                 {
-                    std::cout << "[INFO] EVENT triggered! Counter = 4, NOTIFY subscribers!" << std::endl;
-                    std::string notify_msg = "~EVENT FOUR~";
+                    std::cout << "[INFO] EVENT triggered! Counter = 8, NOTIFY subscribers!" << std::endl;
+                    std::string notify_msg = "~EVENT EIGHT~";
                     std::vector<vsomeip::byte_t> notify_payload_data(notify_msg.begin(), notify_msg.end());
                     std::shared_ptr<vsomeip::payload> notify_payload;
 
@@ -86,13 +143,13 @@ public:
             payload_str += static_cast<char>(*(its_payload->get_data() + i));
         }
 
-        if (payload_str == "up")
+        if (payload_str == "u")
         {
             // Increment the counter
             counter_++;
             std::cout << "SERVICE: Incremented counter to " << counter_ << std::endl;
         }
-        else if (payload_str == "down")
+        else if (payload_str == "d")
         {
             // Decrement the counter (with a check to ensure it doesn't go negative)
             if (counter_ > 0)
@@ -104,6 +161,17 @@ public:
             {
                 std::cout << "SERVICE: Counter is already at 0, cannot decrement further." << std::endl;
             }
+        }
+        else if (payload_str =="au" || payload_str =="ad"){
+            stop_ = false;
+            //stop_.store(false);
+            request_ = payload_str;
+        }
+        else if(payload_str =="s")
+        {
+            stop_ = true;
+            //stop_.store(true);
+            request_ = payload_str;
         }
         else
         {
@@ -209,6 +277,9 @@ private:
     // std::condition_variable condition_;
     // bool blocked_;
     bool running_;
+    //std::atomic<bool> stop_;
+    bool stop_;
+    std::string request_;
 
     std::mutex notify_mutex_;
     std::condition_variable notify_condition_;
@@ -217,7 +288,8 @@ private:
     // std::mutex payload_mutex_;
     // std::shared_ptr<vsomeip::payload> payload_;
 
-    // std::thread offer_thread_;
+    std::thread check_thread_;
+    std::thread count_thread_;
     std::thread notify_thread_;
 };
 
