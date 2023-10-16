@@ -271,7 +271,7 @@ public:
 private:
     std::shared_ptr<vsomeip::application> app_;
     bool is_registered_;
-    unsigned int counter_;
+    int counter_;
 
     std::mutex counter_mutex_;
     // std::condition_variable condition_;
