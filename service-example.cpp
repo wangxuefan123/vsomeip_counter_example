@@ -80,7 +80,7 @@ public:
     {
         std::cout << "counting() CALLED" << std::endl;
         //std::lock_guard<std::mutex> its_lock(counter_mutex_);
-        while(running_ && !stop_)
+        while(running_)
         {
             if(request_ == "au")
             {
